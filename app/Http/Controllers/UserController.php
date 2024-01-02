@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Exception;
+use App\Models\User;
+use App\Mail\OTPMail;
+use App\Helper\JWTToken;
 use Illuminate\Http\Request;
 use PhpParser\Node\Stmt\Catch_;
+use Illuminate\Support\Facades\Mail;
 
 class UserController extends Controller
 {
@@ -49,4 +52,49 @@ class UserController extends Controller
         //     ], 200);
         // }
     }
+
+    function UserLogin(Request $request): object
+    {
+        $count = User::where('email', '=', $request->input('email'))
+            ->where('password', '=', $request->input('password'))
+            ->count();
+
+        if ($count == 1) {
+            $token = JWTToken::CreateToken($request->input('email'));
+            return response()->json([
+                'status' => 'Success',
+                'message' => 'User Login Successfully',
+                'token' => $token
+            ]);
+        } else {
+            return response()->json([
+                'status' => 'Failed',
+                'message' => 'User Login Failed'
+            ]);
+        }
+    }
+
+    public function SendOTPCode(Request $request){
+        $email = $request->input("email");
+        $otp = rand(100000, 999999);
+
+        $count = User::where('email', '=', $email)->count();
+        
+        if($count == 1){
+            //otp email address
+          Mail::to($email)->send(new OTPMail($otp));
+          // otp code table update
+          User::where('email', '=', $email)->update(['otp'=>$otp]);  
+          return response()->json([
+            'status' => 'Success',
+            'message' => '6 digit otp code has been send your mail',
+        ]);
+        }else{
+            return response()->json([
+                'status' => 'Failed',
+                'message' => 'User Login Failed'
+            ]);
+        }
+    }
+
 }
